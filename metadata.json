@@ -1,0 +1,8 @@
+{
+  "name": "Arraid Social CRM",
+  "description": "A comprehensive social media management system for managing clients, scheduling content, and tracking analytics with a focus on Arabic professional services.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

@@ -1,34 +1,17 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
-  Users, 
-  Activity, 
-  Calendar, 
-  TrendingUp,
-  Instagram,
-  Facebook,
-  MessageSquare,
-  Eye,
-  ArrowUpRight,
-  ArrowDownRight,
-  // Added FileText to the imports to resolve the error on line 104
-  FileText
+  Users, Activity, Calendar, TrendingUp, Instagram, Facebook, 
+  MessageSquare, Eye, ArrowUpRight, ArrowDownRight, FileText, 
+  Loader2, RefreshCcw, AlertCircle 
 } from 'lucide-react';
 import { 
-  LineChart, 
-  Line, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer,
-  AreaChart,
-  Area
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area 
 } from 'recharts';
+import { mockApi } from '../../services/mockApi';
+import { DashboardStats } from '../../types';
 
-interface DashboardProps {
-  lang: 'ar' | 'en';
-}
+interface DashboardProps { lang: 'ar' | 'en'; }
 
 const data = [
   { name: '10/1', followers: 4000, engagement: 2400 },
@@ -41,17 +24,11 @@ const data = [
 ];
 
 const KPICard: React.FC<{
-  title: string;
-  value: string;
-  change: number;
-  icon: React.ReactNode;
-  color: string;
+  title: string; value: string | number; change: number; icon: React.ReactNode; color: string;
 }> = ({ title, value, change, icon, color }) => (
-  <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between">
+  <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between hover:shadow-md transition-shadow">
     <div className="flex justify-between items-start mb-4">
-      <div className={`p-3 rounded-xl bg-${color}-50 text-${color}-600`}>
-        {icon}
-      </div>
+      <div className={`p-3 rounded-xl bg-${color}-50 text-${color}-600`}>{icon}</div>
       <div className={`flex items-center gap-1 text-xs font-bold ${change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
         {change >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
         {Math.abs(change)}%
@@ -65,19 +42,35 @@ const KPICard: React.FC<{
 );
 
 const Dashboard: React.FC<DashboardProps> = ({ lang }) => {
-  const translations = {
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  const fetchStats = async () => {
+    setLoading(true);
+    setError(false);
+    try {
+      const res = await mockApi.getDashboardStats();
+      setStats(res);
+    } catch (err) {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchStats(); }, []);
+
+  const t = {
     ar: {
       welcome: 'مرحباً، رضوان 👋',
       subtitle: 'إليك لمحة سريعة عما يحدث في حسابات عملائك اليوم.',
       totalClients: 'إجمالي العملاء',
       engagementRate: 'معدل التفاعل',
       scheduledPosts: 'منشورات مجدولة',
-      totalReach: 'إجمالي الوصول',
-      growthChart: 'نمو المتابعين والتفاعل',
-      recentPosts: 'أحدث المنشورات',
-      topPlatforms: 'أداء المنصات',
-      viewReport: 'عرض التقرير',
-      newPost: 'منشور جديد'
+      totalReach: 'إجمالي المتابعين',
+      retry: 'إعادة المحاولة',
+      loading: 'جاري تحميل البيانات...'
     },
     en: {
       welcome: 'Welcome, Redouane 👋',
@@ -85,74 +78,59 @@ const Dashboard: React.FC<DashboardProps> = ({ lang }) => {
       totalClients: 'Total Clients',
       engagementRate: 'Engagement Rate',
       scheduledPosts: 'Scheduled Posts',
-      totalReach: 'Total Reach',
-      growthChart: 'Growth & Engagement',
-      recentPosts: 'Recent Posts',
-      topPlatforms: 'Platform Performance',
-      viewReport: 'View Report',
-      newPost: 'New Post'
+      totalReach: 'Total Followers',
+      retry: 'Retry',
+      loading: 'Loading data...'
     }
   }[lang];
 
+  if (loading) return (
+    <div className="h-full flex flex-col items-center justify-center space-y-4">
+      <div className="relative w-24 h-24">
+        <div className="absolute inset-0 border-4 border-primary-100 rounded-full"></div>
+        <div className="absolute inset-0 border-4 border-primary-600 rounded-full border-t-transparent animate-spin"></div>
+      </div>
+      <p className="text-gray-500 font-bold">{t.loading}</p>
+    </div>
+  );
+
+  if (error) return (
+    <div className="h-full flex flex-col items-center justify-center p-8 bg-red-50 rounded-3xl border border-red-100">
+      <AlertCircle className="w-16 h-16 text-red-500 mb-4" />
+      <h3 className="text-xl font-bold text-red-900 mb-2">فشل تحميل البيانات</h3>
+      <button onClick={fetchStats} className="bg-red-600 text-white px-6 py-2 rounded-xl font-bold flex items-center gap-2">
+        <RefreshCcw size={18} /> {t.retry}
+      </button>
+    </div>
+  );
+
   return (
-    <div className="animate-in fade-in duration-500">
+    <div className="animate-in fade-in slide-in-from-top-4 duration-500">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-extrabold text-gray-900">{translations.welcome}</h1>
-          <p className="text-gray-500 mt-1">{translations.subtitle}</p>
+          <h1 className="text-3xl font-extrabold text-gray-900">{t.welcome}</h1>
+          <p className="text-gray-500 mt-1">{t.subtitle}</p>
         </div>
         <div className="flex gap-3">
            <button className="bg-white border border-gray-200 text-gray-700 px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-gray-50 transition-all flex items-center gap-2">
-            <FileText className="w-4 h-4" />
-            {translations.viewReport}
+            <FileText className="w-4 h-4" /> {lang === 'ar' ? 'تقرير' : 'Report'}
            </button>
-           <button className="bg-primary-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-primary-700 transition-all shadow-lg shadow-primary-200 flex items-center gap-2">
-            <Calendar className="w-4 h-4" />
-            {translations.newPost}
+           <button className="bg-primary-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-primary-700 transition-all shadow-lg flex items-center gap-2">
+            <Calendar className="w-4 h-4" /> {lang === 'ar' ? 'نشر' : 'Post'}
            </button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <KPICard 
-          title={translations.totalClients} 
-          value="48" 
-          change={12.5} 
-          icon={<Users className="w-6 h-6" />} 
-          color="blue"
-        />
-        <KPICard 
-          title={translations.engagementRate} 
-          value="5.8%" 
-          change={2.1} 
-          icon={<Activity className="w-6 h-6" />} 
-          color="green"
-        />
-        <KPICard 
-          title={translations.scheduledPosts} 
-          value="156" 
-          change={-5.4} 
-          icon={<Calendar className="w-6 h-6" />} 
-          color="purple"
-        />
-        <KPICard 
-          title={translations.totalReach} 
-          value="1.2M" 
-          change={18.9} 
-          icon={<TrendingUp className="w-6 h-6" />} 
-          color="orange"
-        />
+        <KPICard title={t.totalClients} value={stats?.totalClients || 0} change={12.5} icon={<Users className="w-6 h-6" />} color="blue" />
+        <KPICard title={t.engagementRate} value={`${stats?.engagementRate}%`} change={2.1} icon={<Activity className="w-6 h-6" />} color="green" />
+        <KPICard title={t.scheduledPosts} value={stats?.scheduledPosts || 0} change={-5.4} icon={<Calendar className="w-6 h-6" />} color="purple" />
+        <KPICard title={t.totalReach} value={(stats?.totalFollowers || 0).toLocaleString()} change={18.9} icon={<TrendingUp className="w-6 h-6" />} color="orange" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="font-bold text-gray-900 text-lg">{translations.growthChart}</h3>
-            <select className="bg-gray-50 border-none rounded-lg px-3 py-1.5 text-sm font-medium outline-none">
-              <option>{lang === 'ar' ? 'آخر 7 أيام' : 'Last 7 Days'}</option>
-              <option>{lang === 'ar' ? 'آخر 30 يوماً' : 'Last 30 Days'}</option>
-            </select>
-          </div>
+          <h3 className="font-bold text-gray-900 text-lg mb-6">{lang === 'ar' ? 'نمو المتابعين' : 'Growth Chart'}</h3>
           <div className="h-[300px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={data}>
@@ -165,112 +143,32 @@ const Dashboard: React.FC<DashboardProps> = ({ lang }) => {
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#9ca3af'}} />
                 <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#9ca3af'}} />
-                <Tooltip 
-                  contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)'}}
-                />
-                <Area 
-                  type="monotone" 
-                  dataKey="followers" 
-                  stroke="#0ea5e9" 
-                  fillOpacity={1} 
-                  fill="url(#colorFollowers)" 
-                  strokeWidth={3}
-                />
-                <Area 
-                  type="monotone" 
-                  dataKey="engagement" 
-                  stroke="#10b981" 
-                  fillOpacity={0} 
-                  strokeWidth={3}
-                  strokeDasharray="5 5"
-                />
+                <Tooltip contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)'}} />
+                <Area type="monotone" dataKey="followers" stroke="#0ea5e9" fillOpacity={1} fill="url(#colorFollowers)" strokeWidth={3} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-          <h3 className="font-bold text-gray-900 text-lg mb-6">{translations.topPlatforms}</h3>
-          <div className="space-y-6">
-            {[
-              { name: 'Instagram', value: 45, icon: <Instagram className="text-instagram" />, color: '#E4405F' },
-              { name: 'TikTok', value: 30, icon: <Activity className="text-black" />, color: '#000000' },
-              { name: 'Facebook', value: 15, icon: <Facebook className="text-facebook" />, color: '#1877F2' },
-              { name: 'LinkedIn', value: 10, icon: <TrendingUp className="text-linkedin" />, color: '#0A66C2' },
-            ].map((p, idx) => (
-              <div key={idx} className="flex flex-col gap-2">
-                <div className="flex justify-between items-center text-sm">
-                  <div className="flex items-center gap-2 font-bold text-gray-700">
-                    {p.icon}
-                    {p.name}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col">
+           <h3 className="font-bold text-gray-900 text-lg mb-6">{lang === 'ar' ? 'أداء المنصات' : 'Platforms'}</h3>
+           <div className="flex-1 space-y-6">
+              {[
+                { name: 'Instagram', value: 45, color: '#E4405F' },
+                { name: 'TikTok', value: 30, color: '#000000' },
+                { name: 'Facebook', value: 15, color: '#1877F2' }
+              ].map((p, idx) => (
+                <div key={idx} className="space-y-2">
+                  <div className="flex justify-between text-sm font-bold">
+                    <span>{p.name}</span>
+                    <span className="text-gray-400">{p.value}%</span>
                   </div>
-                  <span className="text-gray-500 font-medium">{p.value}%</span>
+                  <div className="h-2 w-full bg-gray-50 rounded-full overflow-hidden">
+                    <div className="h-full rounded-full" style={{ width: `${p.value}%`, backgroundColor: p.color }}></div>
+                  </div>
                 </div>
-                <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full rounded-full" 
-                    style={{ width: `${p.value}%`, backgroundColor: p.color }}
-                  ></div>
-                </div>
-              </div>
-            ))}
-          </div>
-          <button className="w-full mt-8 py-3 rounded-xl border border-gray-200 text-gray-600 font-bold text-sm hover:bg-gray-50 transition-all">
-            {lang === 'ar' ? 'عرض كافة المنصات' : 'View All Platforms'}
-          </button>
-        </div>
-      </div>
-
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-        <div className="flex justify-between items-center mb-6">
-          <h3 className="font-bold text-gray-900 text-lg">{translations.recentPosts}</h3>
-          <button className="text-primary-600 text-sm font-bold hover:underline">
-            {lang === 'ar' ? 'عرض الكل' : 'View All'}
-          </button>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-right" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
-            <thead>
-              <tr className="text-gray-400 text-sm border-b border-gray-50">
-                <th className="pb-4 font-medium">{lang === 'ar' ? 'المنشور' : 'Post'}</th>
-                <th className="pb-4 font-medium">{lang === 'ar' ? 'المنصة' : 'Platform'}</th>
-                <th className="pb-4 font-medium">{lang === 'ar' ? 'الحالة' : 'Status'}</th>
-                <th className="pb-4 font-medium">{lang === 'ar' ? 'التفاعل' : 'Engagement'}</th>
-                <th className="pb-4 font-medium">{lang === 'ar' ? 'الوقت' : 'Time'}</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {[1, 2, 3].map((_, i) => (
-                <tr key={i} className="hover:bg-gray-50 transition-all cursor-pointer">
-                  <td className="py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-lg bg-gray-100 flex-shrink-0">
-                        <img src={`https://picsum.photos/100/100?random=${i+10}`} alt="Post" className="w-full h-full object-cover rounded-lg" />
-                      </div>
-                      <p className="text-sm font-bold text-gray-900 line-clamp-1 w-48">كيف تبني مشروعك الأول من الصفر...</p>
-                    </div>
-                  </td>
-                  <td className="py-4">
-                    <Instagram className="w-5 h-5 text-instagram" />
-                  </td>
-                  <td className="py-4">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-800">
-                      {lang === 'ar' ? 'منشور' : 'Published'}
-                    </span>
-                  </td>
-                  <td className="py-4">
-                    <div className="flex gap-4 text-xs font-medium text-gray-500">
-                      <span className="flex items-center gap-1"><Eye className="w-3 h-3" /> 12K</span>
-                      <span className="flex items-center gap-1"><MessageSquare className="w-3 h-3" /> 452</span>
-                    </div>
-                  </td>
-                  <td className="py-4 text-sm text-gray-500 font-medium">
-                    2 {lang === 'ar' ? 'ساعة مضت' : 'hours ago'}
-                  </td>
-                </tr>
               ))}
-            </tbody>
-          </table>
+           </div>
         </div>
       </div>
     </div>

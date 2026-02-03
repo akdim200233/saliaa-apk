@@ -1,6 +1,5 @@
 
 export type UserRole = 'admin' | 'manager' | 'analyst' | 'client';
-
 export type SocialPlatform = 'instagram' | 'tiktok' | 'facebook' | 'youtube' | 'twitter' | 'linkedin';
 
 export interface User {
@@ -34,17 +33,24 @@ export interface Client {
   startDate: string;
 }
 
-export interface KPI {
-  title: string;
-  value: string | number;
-  change: number;
-  icon: React.ReactNode;
-  color: string;
+export interface DashboardStats {
+  totalClients: number;
+  activeClients: number;
+  totalFollowers: number;
+  monthlyRevenue: number;
+  engagementRate: number;
+  scheduledPosts: number;
 }
 
-export interface AnalyticsData {
-  date: string;
-  followers: number;
-  engagement: number;
-  reach: number;
+export interface Post {
+  id: string;
+  clientId: string;
+  platform: SocialPlatform;
+  content: string;
+  status: 'published' | 'scheduled' | 'draft';
+  timestamp: string;
+  engagement?: {
+    views: number;
+    comments: number;
+  };
 }
